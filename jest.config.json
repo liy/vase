@@ -1,0 +1,13 @@
+{
+  "globals": {
+    "ts-jest": {
+      "isolatedModules": true
+    }
+  },
+  "setupFilesAfterEnv": ["jest-extended/all"],
+  "verbose": true,
+  "modulePathIgnorePatterns": ["dist"],
+  "transform": {
+    "^.+\\.tsx?$": "esbuild-jest"
+  }
+}
