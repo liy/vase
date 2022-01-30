@@ -1,4 +1,4 @@
-import { Middleware, Reducer, Store, Subroutine } from "./vase";
+import { Interceptor, Reducer, Store, Subroutine } from "./vase";
 
 // Action
 type Update = {
@@ -136,42 +136,42 @@ describe("vase", () => {
   });
 });
 
-describe("middleware", () => {
+describe("interceptors", () => {
   it("has correct order", () => {
-    const m1 = jest.fn((action) => action);
-    const m2 = jest.fn((action) => action);
+    const i1 = jest.fn((action) => action);
+    const i2 = jest.fn((action) => action);
 
-    const store = new Store(initialState, mockReducer, [m1, m2]);
+    const store = new Store(initialState, mockReducer, [i1, i2]);
 
     store.operate({
       type: "update",
       count: 2,
     });
 
-    expect(m1).toHaveBeenCalled();
-    expect(m2).toHaveBeenCalled();
-    expect(m1).toHaveBeenCalledBefore(m2);
+    expect(i1).toHaveBeenCalled();
+    expect(i2).toHaveBeenCalled();
+    expect(i1).toHaveBeenCalledBefore(i2);
     expect(store.currentState.count).toBe(2);
   });
 
   it("can halt the action chain", () => {
-    const m1 = jest.fn();
-    const m2 = jest.fn((action) => action);
+    const i1 = jest.fn();
+    const i2 = jest.fn((action) => action);
 
-    const store = new Store(initialState, mockReducer, [m1, m2]);
+    const store = new Store(initialState, mockReducer, [i1, i2]);
 
     store.operate({
       type: "update",
       count: 2,
     });
 
-    expect(m2).toHaveBeenCalledTimes(0);
-    expect(m1).toHaveBeenCalledBefore(m2);
+    expect(i2).toHaveBeenCalledTimes(0);
+    expect(i1).toHaveBeenCalledBefore(i2);
     expect(store.currentState.count).toBe(1);
   });
 
   it("produce correct state", () => {
-    const lastActionMW: Middleware<
+    const lastActionMW: Interceptor<
       MockActionMapping,
       MockState,
       Store<MockActionMapping, MockState>
@@ -185,7 +185,7 @@ describe("middleware", () => {
       return action;
     };
 
-    const validateMW: Middleware<
+    const validateMW: Interceptor<
       MockActionMapping,
       MockState,
       Store<MockActionMapping, MockState>

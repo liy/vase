@@ -6,7 +6,11 @@
   "types": "dist/vase.d.ts",
   "scripts": {
     "build": "node esbuild.js && tsc --emitDeclarationOnly --declaration",
+    "build:watch": "node esbuild.js --watch",
+    "type:watch": "tsc --watch --emitDeclarationOnly --declaration",
+    "start": "npm run build:watch",
     "test": "jest",
+    "test:watch": "npm test -- --watch",
     "prepare": "husky install"
   },
   "author": "Zhengyi Li <liy8282@gmail.com>",

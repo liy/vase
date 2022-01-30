@@ -29,9 +29,9 @@ export type Reducer<M extends BaseActionMapping<M>, S = any> = {
 };
 
 /**
- * Middleware is a function which intercepts an action and output another action (usually be the same action). Return nothing will halt the operation
+ * Interceptor is a function which intercepts an action and output another action (usually be the same action). Return nothing will halt the operation
  */
-export type Middleware<
+export type Interceptor<
   M extends BaseActionMapping<M>,
   State,
   ST extends Store<M, State>
@@ -55,14 +55,14 @@ export type Subroutine<
 
 export class Store<M extends BaseActionMapping<M> = any, State = any> {
   protected subscriptions: Array<Subscription<M, State>> = [];
-  private reducedMiddleware: Middleware<M, State, Store<M, State>>;
+  private interceptor: Interceptor<M, State, Store<M, State>>;
 
   constructor(
     protected state: State,
     protected reducer: Reducer<M, State>,
-    middilewares: Middleware<M, State, Store<M, State>>[] = []
+    interceptors: Interceptor<M, State, Store<M, State>>[] = []
   ) {
-    this.reducedMiddleware = middilewares.reverse().reduce(
+    this.interceptor = interceptors.reverse().reduce(
       (a, b) => {
         return (action, store) => {
           const newAction = b(action, store);
@@ -81,7 +81,7 @@ export class Store<M extends BaseActionMapping<M> = any, State = any> {
   }
 
   operate(action: M[keyof M]) {
-    const newAction = this.reducedMiddleware(action, this);
+    const newAction = this.interceptor(action, this);
     // Halt the operate if action is not valid anymore
     if (!newAction) return;
 
