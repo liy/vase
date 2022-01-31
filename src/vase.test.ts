@@ -138,8 +138,18 @@ describe("vase", () => {
 
 describe("interceptors", () => {
   it("has correct order", () => {
-    const i1 = jest.fn((action) => action);
-    const i2 = jest.fn((action) => action);
+    const fn1 = jest.fn();
+    const i1: Interceptor<any> = (next, store) => (action: any) => {
+      console.log(store);
+      fn1();
+      next(action);
+    };
+    const fn2 = jest.fn();
+    const i2: Interceptor<any> = (next, store) => (action: any) => {
+      console.log(store);
+      fn2();
+      next(action);
+    };
 
     const store = new Store(initialState, mockReducer, [i1, i2]);
 
@@ -148,15 +158,16 @@ describe("interceptors", () => {
       count: 2,
     });
 
-    expect(i1).toHaveBeenCalled();
-    expect(i2).toHaveBeenCalled();
-    expect(i1).toHaveBeenCalledBefore(i2);
+    expect(fn1).toHaveBeenCalled();
+    expect(fn2).toHaveBeenCalled();
+    expect(fn1).toHaveBeenCalledBefore(fn2);
     expect(store.currentState.count).toBe(2);
   });
 
   it("can halt the action chain", () => {
-    const i1 = jest.fn();
-    const i2 = jest.fn((action) => action);
+    const fn = jest.fn();
+    const i1 = () => (action: any) => null;
+    const i2 = () => (action: any) => fn();
 
     const store = new Store(initialState, mockReducer, [i1, i2]);
 
@@ -165,36 +176,27 @@ describe("interceptors", () => {
       count: 2,
     });
 
-    expect(i2).toHaveBeenCalledTimes(0);
-    expect(i1).toHaveBeenCalledBefore(i2);
+    expect(fn).toHaveBeenCalledTimes(0);
     expect(store.currentState.count).toBe(1);
   });
 
   it("produce correct state", () => {
-    const lastActionMW: Interceptor<
-      MockActionMapping,
-      MockState,
-      Store<MockActionMapping, MockState>
-    > = (action, store) => {
+    const lastActionMW: Interceptor<MockActionMapping> = (next) => (action) => {
       if (action.type !== "log") {
         store.operate({
           type: "log",
           lastUpdate: action,
         });
       }
-      return action;
+      return next(action);
     };
 
-    const validateMW: Interceptor<
-      MockActionMapping,
-      MockState,
-      Store<MockActionMapping, MockState>
-    > = (action, _) => {
+    const validateMW: Interceptor<MockActionMapping> = (next) => (action) => {
       // halt the action operation if action count is -1
       if (action.type === "update" && action.count === -1) {
         return null;
       }
-      return action;
+      return next(action);
     };
 
     const store = new Store(initialState, mockReducer, [

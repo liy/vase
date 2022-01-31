@@ -28,17 +28,15 @@ export type Reducer<M extends BaseActionMapping<M>, S = any> = {
   [K in keyof M]?: (action: Readonly<M[K]>, state: Readonly<S>) => S;
 };
 
+export type Next<A = any> = (action: A) => A;
+
 /**
  * Interceptor is a function which intercepts an action and output another action (usually be the same action). Return nothing will halt the operation
  */
-export type Interceptor<
-  M extends BaseActionMapping<M>,
-  State,
-  ST extends Store<M, State>
-> = (
-  action: Readonly<M[keyof M]>,
-  store: ST
-) => Readonly<M[keyof M]> | undefined | null;
+export type Interceptor<M extends BaseActionMapping<M>, S = any> = (
+  next: Next,
+  store: S
+) => Next<M[keyof M]>;
 
 export type Operate<M extends BaseActionMapping<M>> = (
   action: M[keyof M]
@@ -55,24 +53,24 @@ export type Subroutine<
 
 export class Store<M extends BaseActionMapping<M> = any, State = any> {
   protected subscriptions: Array<Subscription<M, State>> = [];
-  private interceptor: Interceptor<M, State, Store<M, State>>;
+  private interceptor: Interceptor<M, Store>;
 
   constructor(
     protected state: State,
     protected reducer: Reducer<M, State>,
-    interceptors: Interceptor<M, State, Store<M, State>>[] = []
+    interceptors: Interceptor<M, Store>[] = []
   ) {
     this.interceptor = interceptors.reverse().reduce(
       (a, b) => {
-        return (action, store) => {
-          const newAction = b(action, store);
-          if (newAction) {
-            return a(newAction, store);
-          }
+        return (action) => {
+          return b(a(action, this), this);
         };
       },
-      // initial dummy pass through function so we don't get conditional check in operate
-      (action) => action
+      () => {
+        return (action) => {
+          this.processOperate(action);
+        };
+      }
     );
   }
 
@@ -80,19 +78,20 @@ export class Store<M extends BaseActionMapping<M> = any, State = any> {
     this.reducer = reducer;
   }
 
-  operate(action: M[keyof M]) {
-    const newAction = this.interceptor(action, this);
-    // Halt the operate if action is not valid anymore
-    if (!newAction) return;
-
-    const fn = this.reducer[newAction.type];
+  protected processOperate(action: M[keyof M]) {
+    const fn = this.reducer[action.type];
     if (fn) {
       const oldState = this.state;
-      this.state = fn(newAction, this.state);
-      this.notify(newAction, this.state, oldState);
+      this.state = fn(action, this.state);
+      this.notify(action, this.state, oldState);
     }
 
     return action;
+  }
+
+  operate(action: M[keyof M]) {
+    // @ts-ignore
+    return this.interceptor()(action);
   }
   /**
    * Start a subroutine
