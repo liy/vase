@@ -11,11 +11,7 @@ type Log = {
   lastUpdate: Update | null;
 };
 
-// action mapping
-interface MockActionMapping {
-  update: Update;
-  log: Log;
-}
+type Actions = Update | Log;
 
 type MockState = {
   count: number;
@@ -27,7 +23,7 @@ const initialState: MockState = {
   lastUpdate: null,
 };
 
-const mockReducer: Reducer<MockActionMapping, MockState> = {
+const mockReducer: Reducer<MockState, Actions> = {
   update(action, state) {
     return {
       ...state,
@@ -49,7 +45,7 @@ describe("vase", () => {
   });
 
   it("sync operate produce correct state", () => {
-    const store = new Store<MockActionMapping>({ count: 1 }, mockReducer);
+    const store = new Store<MockState, Actions>(initialState, mockReducer);
 
     store.operate({
       type: "update",
@@ -60,7 +56,7 @@ describe("vase", () => {
   });
 
   it("should not modify initial state", () => {
-    const store = new Store<MockActionMapping>({ count: 1 }, mockReducer);
+    const store = new Store<MockState, Actions>(initialState, mockReducer);
 
     store.operate({
       type: "update",
@@ -71,12 +67,9 @@ describe("vase", () => {
   });
 
   it("async invoke produce correct state", async () => {
-    const store = new Store<MockActionMapping, MockState>(
-      initialState,
-      mockReducer
-    );
+    const store = new Store<MockState, Actions>(initialState, mockReducer);
 
-    function mockThunk(): Subroutine<MockActionMapping, MockState> {
+    function mockThunk(): Subroutine<Actions, MockState> {
       return async (operate) => {
         operate({
           type: "update",
@@ -90,12 +83,9 @@ describe("vase", () => {
   });
 
   it("provide correct event subscription", (done) => {
-    const store = new Store<MockActionMapping, MockState>(
-      initialState,
-      mockReducer
-    );
+    const store = new Store<MockState, Actions>(initialState, mockReducer);
 
-    function mockThunk(): Subroutine<MockActionMapping, MockState> {
+    function mockThunk(): Subroutine<Actions, MockState> {
       return async (operate) => {
         operate({
           type: "update",
@@ -118,10 +108,7 @@ describe("vase", () => {
   });
 
   it("Subscription clean up correctly", () => {
-    const store = new Store<MockActionMapping, MockState>(
-      initialState,
-      mockReducer
-    );
+    const store = new Store<MockState, Actions>(initialState, mockReducer);
 
     const mfn = jest.fn();
     const cleanup = store.subscribe({
@@ -139,13 +126,13 @@ describe("vase", () => {
 describe("interceptors", () => {
   it("has correct order", () => {
     const fn1 = jest.fn();
-    const i1: Interceptor<any> = (next, store) => (action: any) => {
+    const i1: Interceptor<any> = (next) => (action: any) => {
       console.log(store);
       fn1();
       next(action);
     };
     const fn2 = jest.fn();
-    const i2: Interceptor<any> = (next, store) => (action: any) => {
+    const i2: Interceptor<any> = (next) => (action: any) => {
       console.log(store);
       fn2();
       next(action);
@@ -181,7 +168,7 @@ describe("interceptors", () => {
   });
 
   it("produce correct state", () => {
-    const lastActionMW: Interceptor<MockActionMapping> = (next) => (action) => {
+    const lastActionMW: Interceptor<Actions> = (next) => (action) => {
       if (action.type !== "log") {
         store.operate({
           type: "log",
@@ -191,10 +178,10 @@ describe("interceptors", () => {
       return next(action);
     };
 
-    const validateMW: Interceptor<MockActionMapping> = (next) => (action) => {
+    const validateMW: Interceptor<Actions> = (next) => (action) => {
       // halt the action operation if action count is -1
       if (action.type === "update" && action.count === -1) {
-        return null;
+        return;
       }
       return next(action);
     };

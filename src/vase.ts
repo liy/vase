@@ -1,69 +1,59 @@
 /**
  * Constraint the action type
  */
-export type BaseAction<M> = {
-  type: keyof M;
+export type BaseAction = {
+  type: string;
 };
-
-/**
- * Constraints key of the mapping needs to be the type of the action(base action)
- */
-export type BaseActionMapping<M> = Record<keyof M, BaseAction<M>>;
 
 /**
  * Constrain the subscription function name and its parameters
  */
-export type Subscription<M extends BaseActionMapping<M>, S = any> = {
-  [K in keyof M]?: (
-    action: Readonly<M[K]>,
-    newState: Readonly<S>,
-    oldState: Readonly<S>
-  ) => void;
+export type Subscription<S, Actions extends BaseAction> = {
+  [A in Actions as A["type"]]?: (action: A, newState: S, oldState: S) => void;
 };
 
 /**
  * Constrain the reducer function name and its parameters
  */
-export type Reducer<M extends BaseActionMapping<M>, S = any> = {
-  [K in keyof M]?: (action: Readonly<M[K]>, state: Readonly<S>) => S;
+export type Reducer<S, Actions extends BaseAction> = {
+  [A in Actions as A["type"]]?: (action: A, state: S) => S;
 };
 
-export type Next<A = any> = (action: A) => A;
+export type Next<Actions extends BaseAction> = (
+  action: Actions
+) => Actions | null | undefined;
 
 /**
  * Interceptor is a function which intercepts an action and output another action (usually be the same action). Return nothing will halt the operation
  */
-export type Interceptor<M extends BaseActionMapping<M>, S = any> = (
-  next: Next,
-  store: S
-) => Next<M[keyof M]>;
+export type Interceptor<Actions extends BaseAction> = (
+  next: Next<Actions>
+) => Next<Actions>;
 
-export type Operate<M extends BaseActionMapping<M>> = (
-  action: M[keyof M]
-) => M[keyof M] | undefined;
+export type Operate<Actions extends BaseAction> = (action: Actions) => Actions;
 
 export type Subroutine<
-  M extends BaseActionMapping<M>,
+  Actions extends BaseAction,
   StateType,
   ResolveType = void
 > = (
-  operate: Operate<M>,
+  operate: Operate<Actions>,
   state: StateType
 ) => ResolveType extends void ? void : Promise<ResolveType>;
 
-export class Store<M extends BaseActionMapping<M> = any, State = any> {
-  protected subscriptions: Array<Subscription<M, State>> = [];
-  private interceptor: Interceptor<M, Store>;
+export class Store<State, Actions extends BaseAction> {
+  protected subscriptions: Array<Subscription<State, Actions>> = [];
+  private interceptor: Interceptor<Actions>;
 
   constructor(
     protected state: State,
-    protected reducer: Reducer<M, State>,
-    interceptors: Interceptor<M, Store>[] = []
+    protected reducer: Reducer<State, Actions>,
+    interceptors: Interceptor<Actions>[] = []
   ) {
     this.interceptor = interceptors.reverse().reduce(
       (a, b) => {
         return (action) => {
-          return b(a(action, this), this);
+          return b(a(action));
         };
       },
       () => {
@@ -74,11 +64,12 @@ export class Store<M extends BaseActionMapping<M> = any, State = any> {
     );
   }
 
-  updateReducer(reducer: Reducer<M, State>) {
+  updateReducer(reducer: Reducer<State, Actions>) {
     this.reducer = reducer;
   }
 
-  protected processOperate(action: M[keyof M]) {
+  protected processOperate(action: Actions) {
+    // @ts-ignore
     const fn = this.reducer[action.type];
     if (fn) {
       const oldState = this.state;
@@ -89,7 +80,7 @@ export class Store<M extends BaseActionMapping<M> = any, State = any> {
     return action;
   }
 
-  operate(action: M[keyof M]) {
+  operate(action: Actions) {
     // @ts-ignore
     return this.interceptor()(action);
   }
@@ -98,27 +89,25 @@ export class Store<M extends BaseActionMapping<M> = any, State = any> {
    * @param thunk A subroutine, or a thunk if you familiar with redux.
    * @returns A Promise.
    */
-  invoke<ResolveType>(thunk: Subroutine<M, State, ResolveType>) {
+  invoke<ResolveType>(thunk: Subroutine<Actions, State, ResolveType>) {
     if (typeof thunk !== "function") {
       throw new Error(
         "subroutine needs to be a function return a promise, use operate for normal action"
       );
     }
+    // @ts-ignore
     return thunk(this.operate.bind(this), this.currentState);
   }
 
-  protected notify(
-    action: Readonly<M[keyof M]>,
-    newState: Readonly<State>,
-    oldState: Readonly<State>
-  ) {
+  protected notify(action: Actions, newState: State, oldState: State) {
     for (let subscription of this.subscriptions) {
       // Optional chaining function call
+      // @ts-ignore
       subscription[action.type]?.(action, newState, oldState);
     }
   }
 
-  subscribe(sub: Subscription<M, State>): () => void {
+  subscribe(sub: Subscription<State, Actions>): () => void {
     this.subscriptions.push(sub);
 
     return () => {
