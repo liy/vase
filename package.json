@@ -5,7 +5,7 @@
   "main": "dist/vase.js",
   "types": "dist/vase.d.ts",
   "scripts": {
-    "build": "node esbuild.js && tsc --emitDeclarationOnly --declaration",
+    "build": "node esbuild.js && tsc --skipLibCheck --emitDeclarationOnly --declaration",
     "build:watch": "node esbuild.js --watch",
     "type:watch": "tsc --watch --emitDeclarationOnly --declaration",
     "start": "npm run build:watch",
