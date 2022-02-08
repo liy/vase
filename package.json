@@ -1,6 +1,6 @@
 {
   "name": "vasejs",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A simple and lean library to manage state: View -> Action -> State -> Event",
   "main": "dist/vase.js",
   "types": "dist/vase.d.ts",
